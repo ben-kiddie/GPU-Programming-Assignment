@@ -46,17 +46,16 @@ GLfloat deltaTime = 0.0f, lastTime = 0.0f;
 Window mainWindow;
 Camera camera;
 
-Texture brickTexture, dirtTexture, emeraldOreTexture, plainTexture;
+Texture plainTexture, emeraldOreTexture, diamondOreTexture;
 Material shinyMaterial, dullMaterial;
-
-Model xwing;
-Model blackhawk;
 
 DirectionalLight mainLight;
 PointLight pointLights[MAX_POINT_LIGHTS];
 SpotLight spotLights[MAX_SPOT_LIGHTS];
 
-std::vector<Mesh*> meshList;
+Model plane;
+Model chopper;
+
 std::vector<Shader> shaderList;
 
 
@@ -94,81 +93,8 @@ void CalculateAverageNormals(unsigned int* indices, unsigned int indexCount, GLf
 
 void CreateObjects()
 {
-	unsigned int indices[] = {
-		0, 3, 1,	// Left face
-		1, 3, 2,	// Right face
-		2, 3, 0,	// Front face
-		0, 1, 2		// Bottom face
-	};
-
-	// Setup vertices of triangle - no depth, just three vertices within normalised space. Remember - the left side and bottom of our window are represented by -1.0 (or "100% left (or down)), or 1.0 for top or right of our window.
-	GLfloat vertices[] = {
-	//	x		y		z			u		v			nX		nY		nZ
-		-1.0f,	-1.0f,	-0.6f,		0.0f,	0.0f,		0.0f,	0.0f,	0.0f,	// Bottom left 
-		0.0f,	-1.0f,	1.0f,		0.5f,	0.0f,		0.0f,	0.0f,	0.0f,	// Background
-		1.0f,	-1.0f,	-0.6f,		1.0f,	0.0f,		0.0f,	0.0f,	0.0f,	// Bottom right
-		0.0f,	1.0f,	0.0f,		0.5f,	1.0f,		0.0f,	0.0f,	0.0f	// Top
-	};
-
-	CalculateAverageNormals(indices, 12, vertices, 32, 8, 5);
-
-	Mesh* obj1 = new Mesh();
-	obj1->CreateMesh(vertices, indices, 32, 12);
-	meshList.push_back(obj1);
-
-	Mesh* obj2 = new Mesh();
-	obj2->CreateMesh(vertices, indices, 32, 12);
-	meshList.push_back(obj2);
-
-#pragma region Cube Exercise
-
-	unsigned int cubeIndices[] = {
-		0, 1, 2, 1, 3, 2,	// Front face
-		1, 5, 3, 5, 7, 3,	// Right face	
-		4, 5, 6, 5, 6, 7,	// Back face	
-		4, 6, 0, 0, 2, 6,	// Left face
-		2, 3, 6, 3, 7, 6,	// Top face
-		0, 1, 4, 1, 5, 4	// Bottom face
-	};
-
-	GLfloat cubeVertices[] = {
-	//	x		y		z			u		v			nX		nY		nZ		
-		-1.0f,	-1.0f,	-1.0f,		0.0f,	0.0f,		0.0f,	0.0f,	0.0f,	// 0 - Front bottom left
-		1.0f,	-1.0f,	-1.0f,		1.0f,	0.0f,		0.0f,	0.0f,	0.0f,	// 1 - Front bottom right
-		-1.0f,	1.0f,	-1.0f,		0.0f,	1.0f,		0.0f,	0.0f,	0.0f,	// 2 - Front top left
-		1.0f,	1.0f,	-1.0f,		1.0f,	1.0f,		0.0f,	0.0f,	0.0f,	// 3 - Front top right
-		-1.0f,	-1.0f,	1.0f,		0.0f,	0.0f,		0.0f,	0.0f,	0.0f,	// 4 - Back bottom left
-		1.0f,	-1.0f,	1.0f,		1.0f,	0.0f,		0.0f,	0.0f,	0.0f,	// 5 - Back bottom right
-		-1.0f,	1.0f,	1.0f,		0.0f,	1.0f,		0.0f,	0.0f,	0.0f,	// 6 - Back top left
-		1.0f,	1.0f,	1.0f,		1.0f,	1.0f,		0.0f,	0.0f,	0.0f	// 7 - Back top right
-	};
-
-	CalculateAverageNormals(cubeIndices, 36, cubeVertices, 64, 8, 5);
-	Mesh* cube = new Mesh();
-	cube->CreateMesh(cubeVertices, cubeIndices, 64, 36);
-	meshList.push_back(cube);
-
-#pragma endregion
-
-#pragma region Floor Mesh
-	unsigned int floorIndices[] = {
-		0,	2,	1,
-		1,	2,	3
-	};
-
-	GLfloat floorVertices[] = {
-//	x		y		z		u		v		nX		nY		nZ
-	-10.0f,	0.0f,	-10.0f,	0.0f,	0.0f,	0.0f,	-1.0f,	0.0f,
-	10.0f,	0.0f,	-10.0f,	10.0f,	0.0f,	0.0f,	-1.0f,	0.0f,
-	-10.0f,	0.0f,	10.0f,	0.0f,	10.0f,	0.0f,	-1.0f,	0.0f,
-	10.0f,	0.0f,	10.0f,	10.0f,	10.0f,	0.0f,	-1.0f,	0.0f
-	};
-
-	Mesh* floor = new Mesh();
-	floor->CreateMesh(floorVertices, floorIndices, 32, 6);
-	meshList.push_back(floor);
-#pragma endregion
-
+	plane.LoadModel("Models/plane.obj");
+	chopper.LoadModel("Models/chopper.obj");
 }
 
 void CreateShaders()
@@ -195,62 +121,47 @@ int main()
 	//	4 - The far plane, where anything beyond this is clipped
 	glm::mat4 projection = glm::perspective(45.0f, mainWindow.GetBufferWidth() / mainWindow.GetBufferHeight(), 0.1f, 100.0f);
 
-	Assimp::Importer importer;
-
-	brickTexture = Texture("Textures/brick.png");
-	brickTexture.LoadTextureA();
-	dirtTexture = Texture("Textures/dirt.png");
-	dirtTexture.LoadTextureA();
-	emeraldOreTexture = Texture("Textures/MC_Emerald_Ore.png");
-	emeraldOreTexture.LoadTextureA();
-	plainTexture = Texture("Textures/plain.png");
-	plainTexture.LoadTextureA();
+	Assimp::Importer importer;	
 
 	shinyMaterial = Material(4.0f, 156);
 	dullMaterial = Material(0.3f, 4);
-
-	xwing = Model();
-	xwing.LoadModel("Models/x-wing.obj");
-
-	blackhawk = Model();
-	blackhawk.LoadModel("Models/uh60.obj");
 
 	mainLight = DirectionalLight(1.0f, 1.0f, 1.0f, 
 								0.3f, 0.6f, 
 								0.0f, 0.0f, -1.0f);
 
 	unsigned int pointLightCount = 0;
-	pointLights[0] = PointLight(0.0f, 0.0f, 1.0f,
-								0.0f, 0.1f,
-								0.0f, 0.0f, 0.0f,
-								0.3f, 0.2f, 0.1f);
-	pointLightCount++;
+	pointLightCount++;		// Red point light
+	pointLights[0] = PointLight(1.0f, 0.0f, 0.0f,
+								10.0f, 10.0f,
+								-8.0f, 0.0f, 8.0f,
+								0.3f, 0.2f, 0.2f);
 	
+	pointLightCount++;		// Green point light
 	pointLights[1] = PointLight(0.0f, 1.0f, 0.0f,
-								0.0f, 0.1f,
-								-4.0f, 2.0f, 0.0f,
-								0.3f, 0.1f, 0.1f);
-	pointLightCount++;
+								10.0f, 10.0f,
+								0.0f, 2.0f, -16.0f,
+								0.3f, 0.2f, 0.2f);
+
+	pointLightCount++;		// Blue point light
+	pointLights[2] = PointLight(0.0f, 0.0f, 1.0f,
+								10.0f, 10.0f,
+								8.0f, 0.0f, 8.0f,
+								0.3f, 0.2f, 0.2f);
 
 	unsigned int spotLightCount = 0;
+	spotLightCount++;		// Flash light
 	spotLights[0] = SpotLight(	1.0f, 1.0f, 1.0f,
-								0.0f, 2.0f,
+								0.0f, 0.5f,
 								0.0f, 0.0f, 0.0f,
 								0.0f, -1.0f, 0.0f,
 								1.0f, 0.0f, 0.0f,
 								20.0f);
-	spotLightCount++;
-
-	spotLights[1] = SpotLight(	1.0f, 1.0f, 1.0f,
-								0.0f, 1.0f,
-								0.0f, -1.5f, 0.0f,
-								-100.0f, -1.0f, 0.0f,
-								1.0f, 0.0f, 0.0f,
-								20.0f);
-	spotLightCount++;
 
 	GLuint uniformProjection = 0, uniformModel = 0, uniformView = 0, uniformEyePosition = 0,
 		uniformSpecularIntensity = 0, uniformShininess = 0;
+
+	float currentRotation = 0.0f;
 
 	while (!mainWindow.GetShouldClose())
 	{
@@ -272,7 +183,7 @@ int main()
 		//	2 - Normalised green value
 		//	3 - Normalised blue value
 		//	4 - Normalised alpha value
-		glClearColor(0.5f, 0.0f, 1.0f, 1.0f);	// glClear clears a screen, ready for us to draw to a new frame. glClearColor lets us set the colour of our new frame, not just a black void! Remember the colour values you set should be normalised.
+		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);	// glClear clears a screen, ready for us to draw to a new frame. glClearColor lets us set the colour of our new frame, not just a black void! Remember the colour values you set should be normalised.
 
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	// We use glClear to clear specific elements of our window. Pixels on screen contain more than just the colour - e.g., stencil data, depth data, and more. So we specify which to clear, as many as we want. In this case, we just clear all the colour buffers.
 
@@ -286,7 +197,7 @@ int main()
 		
 		glm::vec3 lowerLight = camera.GetCameraPosition();
 		lowerLight.y -= 0.3f;
-		//spotLights[0].SetFlash(lowerLight, camera.GetCameraDirection());
+		spotLights[0].SetFlash(lowerLight, camera.GetCameraDirection());
 
 		shaderList[0].SetDirectionalLight(&mainLight);	// Note: the argument is a pointer, so we pass in the memory address
 		shaderList[0].SetPointLights(pointLights, pointLightCount);
@@ -298,48 +209,21 @@ int main()
 		glUniform3f(uniformEyePosition, camera.GetCameraPosition().x, camera.GetCameraPosition().y, camera.GetCameraPosition().z);	// Inside our fragment shader we want to know the eye position, i.e., camera pos
 		glm::mat4 model(1.0f); // Setup a 4x4 identity matrix so that we can calculate using it later
 
-		model = glm::translate(model, glm::vec3(0.0f, 0.0f, -2.5f));	// Take our identity matrix and apply a translation to it (as of writing this, just move in the x-axis)
-		glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
-		brickTexture.UseTexture();
-		shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
-		meshList[0]->RenderMesh();
-
 		model = glm::mat4(1.0f);
-		model = glm::translate(model, glm::vec3(0.0f, 4.0f, -2.5f));
-		glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
-		dirtTexture.UseTexture();
-		dullMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
-		meshList[1]->RenderMesh();
-
-		model = glm::mat4(1.0f);
-		model = glm::translate(model, glm::vec3(4.0f, 0.0f, -2.5f));
-		glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
-		emeraldOreTexture.UseTexture();
-		shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
-		meshList[2]->RenderMesh();
-
-		model = glm::mat4(1.0f);
-		model = glm::translate(model, glm::vec3(0.0f, -2.0f, 0.0f));
-		glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
-		dirtTexture.UseTexture();
-		shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
-		meshList[3]->RenderMesh();
-
-		model = glm::mat4(1.0f);
-		model = glm::translate(model, glm::vec3(-20.0f, 0.0f, 15.0f));
-		model = glm::scale(model, glm::vec3(0.01f, 0.01f, 0.01f));
+		model = glm::translate(model, glm::vec3(0.0f, -4.0f, -4.0f));
+		model = glm::scale(model, glm::vec3(10.0f, 10.0f, 10.0f));
 		glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
 		shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
-		xwing.RenderModel();
+		plane.RenderModel();
 
 		model = glm::mat4(1.0f);
-		model = glm::translate(model, glm::vec3(-6.0f, 4.0f, 0.0f));
+		model = glm::translate(model, glm::vec3(0.0f, 0.0f, -3.0f));
+		model = glm::rotate(model, currentRotation * toRadians, glm::vec3(0.0f, 1.0f, 0.0f));
 		model = glm::scale(model, glm::vec3(0.5f, 0.5f, 0.5f));
-		model = glm::rotate(model, -90.0f * toRadians, glm::vec3(1.0f, 0.0f, 0.0f));
-		model = glm::rotate(model, 180.0f * toRadians, glm::vec3(0.0f, 0.0f, 1.0f));
 		glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
 		shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
-		blackhawk.RenderModel();
+		chopper.RenderModel();
+		currentRotation += 0.05f;
 
 		glUseProgram(0);	// Once we're done with a shader program, remember to unbind it.
 
