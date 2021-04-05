@@ -1,6 +1,6 @@
 #version 330 core
 
-in vec2 textureCoordinates;
+in vec2 vTexCoord;
 
 out vec4 fragColour;
 
@@ -28,7 +28,7 @@ void main()
 	vec4 convolvedPixel = vec4(0.0f, 0.0f, 0.0f, 1.0f);	// Stores the fragment resulting from applying the 5x5 blur filter kernel
 	for(int i = 0; i < 9; i++)
 	{
-		vec4 tempVec = vec4(texture(screenTexture, textureCoordinates + offsetLUT[i]).rgb, 1.0f);
+		vec4 tempVec = vec4(texture(screenTexture, vTexCoord + offsetLUT[i]).rgb, 1.0f);
 		convolvedPixel += (tempVec * kernel3x3[i]);
 	}
 	fragColour = convolvedPixel;

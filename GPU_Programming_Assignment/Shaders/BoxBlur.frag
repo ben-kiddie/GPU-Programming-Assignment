@@ -1,8 +1,64 @@
 #version 330 core
 
-in vec2 textureCoordinates;
+// Constants
+const int MAX_POINT_LIGHTS = 3;
+const int MAX_SPOT_LIGHTS = 3;
+				
+// Structs
+struct Light
+{
+	vec3 colour;
+	float ambientIntensity;
+	float diffuseIntensity;
+};
 
+struct DirectionalLight
+{
+	Light base;
+	vec3 direction;
+};
+
+struct PointLight
+{
+	Light base;
+	vec3 position;
+	float constant;
+	float linear;
+	float exponent;
+};
+
+struct SpotLight
+{
+	PointLight base;
+	vec3 direction;
+	float edge;
+};
+
+struct Material
+{
+	float specularIntensity;
+	float shininess;
+};
+
+// Input
+in vec4 vCol;	
+in vec2 vTexCoord;
+in vec3 vNormal;
+in vec3 vFragPos;
+
+// Output		
 out vec4 fragColour;
+
+// Uniforms
+uniform DirectionalLight directionalLight;
+uniform int pointLightCount;
+uniform PointLight pointLights[MAX_POINT_LIGHTS];
+uniform int spotLightCount;
+uniform SpotLight spotLights[MAX_SPOT_LIGHTS];
+
+uniform sampler2D theTexture;
+uniform Material material;
+uniform vec3 eyePosition;	// i.e., the camera position for any given first person camera
 
 uniform sampler2D screenTexture;
 
@@ -28,7 +84,7 @@ void main()
 	vec4 convolvedPixel = vec4(0.0f, 0.0f, 0.0f, 1.0f);	// Stores the fragment resulting from applying the box blur filter kernel
 	for(int i = 0; i < 9; i++)
 	{
-		vec4 tempVec = vec4(texture(screenTexture, textureCoordinates + offsetLUT[i]).rgb, 1.0f);
+		vec4 tempVec = vec4(texture(screenTexture, vTexCoord + offsetLUT[i]).rgb, 1.0f);
 		convolvedPixel += (tempVec * kernel3x3[i]);
 	}
 	fragColour = convolvedPixel / 9;	// Normalise fragment through dividing by kernel size

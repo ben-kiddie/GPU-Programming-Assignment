@@ -6,7 +6,7 @@
 //	https://setosa.io/ev/image-kernels/ - Solid explanation of image filtering with examples of images before and after
 //	https://docs.isf.video/primer_chapter_6.html#what-is-a-convolution-matrix - even more explanation here, with additional weighting examples
 
-in vec2 textureCoordinates;
+in vec2 vTexCoord;
 
 out vec4 fragColour;
 
@@ -38,7 +38,7 @@ void main()
 	vec4 convolvedPixel = vec4(0.0f, 0.0f, 0.0f, 1.0f);	// Stores the fragment resulting from applying the gaussian blur filter kernel
 	for(int i = 0; i < 25; i++)
 	{
-		vec4 tempVec = vec4(texture(screenTexture, textureCoordinates + offsetLUT[i]).rgb, 1.0f);
+		vec4 tempVec = vec4(texture(screenTexture, vTexCoord + offsetLUT[i]).rgb, 1.0f);
 		convolvedPixel += (tempVec * kernel5x5[i]);
 	}
 	fragColour = convolvedPixel / 256;

@@ -34,13 +34,6 @@
 
 const float toRadians = 3.14159265f / 180.0f;	// If we multiply a number by this value, it will output a radian value
 
-// Vertex shader - to be moved to a separate file. Here we are taking in vertices to be modified or used as is, then passed to fragment shader.
-static const char* vShader = "Shaders/shader.vert";
-
-// Fragment shader - also to be moved to a separate file. Note: you don't normally pass anything in to the fragment shader, it simply picks up output from the vertex shader.
-// Additional note - with the fragment shader, you don't even have to specify an out variable. If you only have one variable, it is assumed to be the colour, which is defaulted as an output.
-static const char* fShader = "Shaders/shader.frag";
-
 GLfloat deltaTime = 0.0f, lastTime = 0.0f;
 
 Window mainWindow;
@@ -56,7 +49,9 @@ SpotLight spotLights[MAX_SPOT_LIGHTS];
 Model plane;
 Model chopper;
 
-std::vector<Shader> shaderList;
+std::vector<Mesh*> meshList;
+
+Shader blinnPhongShader, sharpenShader, boxBlurShader;
 
 
 
@@ -95,24 +90,98 @@ void CreateObjects()
 {
 	plane.LoadModel("Models/plane.obj");
 	chopper.LoadModel("Models/chopper.obj");
+
+	unsigned int leftScreenQuadIndices[] = {
+		0,	1,	2,
+		2,	3,	0
+	};
+	GLfloat leftScreenQuadVertices[] = {
+	//	x		y		z		u		v		nX		nY		nZ
+		-1.0f,	1.0f,	0.0f,	0.0f,	1.0f,	0.0f,	0.0f,	0.0f,	// Top left
+		-1.0f,	-1.0f,	0.0f,	0.0f,	0.0f,	0.0f,	0.0f,	0.0f,	// Bottom left
+		0.0f,	-1.0f,	0.0f,	0.5f,	0.0f,	0.0f,	0.0f,	0.0f,	// Bottom middle
+		0.0f,	1.0f,	0.0f,	0.5f,	1.0f,	0.0f,	0.0f,	0.0f	// Top middle
+	};
+	Mesh* leftScreenQuad = new Mesh();
+	leftScreenQuad->CreateMesh(leftScreenQuadVertices, leftScreenQuadIndices, 32, 6);
+	meshList.push_back(leftScreenQuad);
+
+	unsigned int rightScreenQuadIndices[] = {
+		0,	1,	2,
+		2,	3,	0
+	};
+	GLfloat rightScreenQuadVertices[] = {
+	//	x		y		z		u		v		nX		nY		nZ
+		0.0f,	1.0f,	0.0f,	0.5f,	1.0f,	0.0f,	0.0f,	0.0f,	// Top middle
+		0.0f,	-1.0f,	0.0f,	0.5f,	0.0f,	0.0f,	0.0f,	0.0f,	// Bottom middle
+		1.0f,	-1.0f,	0.0f,	1.0f,	0.0f,	0.0f,	0.0f,	0.0f,	// Bottom right
+		1.0f,	1.0f,	0.0f,	1.0f,	1.0f,	0.0f,	0.0f,	0.0f	// Top right
+	};
+	Mesh* rightScreenQuad = new Mesh();
+	rightScreenQuad->CreateMesh(rightScreenQuadVertices, rightScreenQuadIndices, 32, 6);
+	meshList.push_back(rightScreenQuad);
 }
 
 void CreateShaders()
 {
-	Shader* shader1 = new Shader();
-	shader1->CreateFromFiles(vShader, fShader);
-	shaderList.push_back(*shader1);
+	blinnPhongShader.CreateFromFiles("Shaders/shader.vert", "Shaders/shader.frag");
+
+	boxBlurShader.CreateFromFiles("Shaders/Screen.vert", "Shaders/BoxBlur.frag");
+
+	sharpenShader.CreateFromFiles("Shaders/Screen.vert", "Shaders/Sharpen.frag");
+
+
+	//Shader* standardShader = new Shader();
+	//standardShader->CreateFromFiles("Shaders/shader.vert", "Shaders/shader.frag");
+	//shaderList.push_back(*standardShader);
+
+	//Shader* boxBlurShader = new Shader();
+	//boxBlurShader->CreateFromFiles("Shaders/shader.vert", "Shaders/BoxBlur.frag");
+	//shaderList.push_back(*boxBlurShader);
+
+	//Shader* sharpenShader = new Shader();
+	//sharpenShader->CreateFromFiles("Shaders/Screen.vert", "Shaders/Sharpen.frag");
+	//shaderList.push_back(*sharpenShader);
 }
 
 int main()
 {
-	mainWindow = Window(1366, 768);
+	mainWindow = Window(SCREEN_WIDTH, SCREEN_HEIGHT);
 	mainWindow.Initialise();
 
 	CreateObjects();
 	CreateShaders();
 
 	camera = Camera(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f, 5.0f, 0.2f);
+
+	// Generate and bind a framebuffer
+	unsigned int framebuffer;
+	glGenFramebuffers(1, &framebuffer);
+	glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+
+	// Generate and bind textures
+	unsigned int colourBuffer;
+	glGenTextures(1, &colourBuffer);
+	glBindTexture(GL_TEXTURE_2D, colourBuffer);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, SCREEN_WIDTH, SCREEN_HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);	// Framebuffer texture size - resolution scale, i.e., width * height = 100% scale
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colourBuffer, 0);
+
+	unsigned int renderBuffer;
+	glGenRenderbuffers(1, &renderBuffer);
+	glBindRenderbuffer(GL_RENDERBUFFER, renderBuffer);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, SCREEN_WIDTH, SCREEN_HEIGHT);
+	glBindRenderbuffer(GL_RENDERBUFFER, 0);
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, renderBuffer);
+
+	// Check framebuffer is correctly configured
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+	{
+		std::cout << "Framebuffer is not complete!" << std::endl;
+	}
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	// Parameters of glm::perspective:
 	//	1 - The angle for our FOV in the y axis
@@ -176,6 +245,9 @@ int main()
 		camera.KeyControl(mainWindow.GetKeys(), deltaTime);
 		camera.MouseControl(mainWindow.GetXChange(), mainWindow.GetYChange());
 
+		// Bind our own framebuffer
+		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+
 		// Clear the window
 
 		// Parameters of glClearColour:
@@ -183,25 +255,26 @@ int main()
 		//	2 - Normalised green value
 		//	3 - Normalised blue value
 		//	4 - Normalised alpha value
-		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);	// glClear clears a screen, ready for us to draw to a new frame. glClearColor lets us set the colour of our new frame, not just a black void! Remember the colour values you set should be normalised.
+		glClearColor(0.25f, 0.25f, 0.25f, 1.0f);	// glClear clears a screen, ready for us to draw to a new frame. glClearColor lets us set the colour of our new frame, not just a black void! Remember the colour values you set should be normalised.
 
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);	// We use glClear to clear specific elements of our window. Pixels on screen contain more than just the colour - e.g., stencil data, depth data, and more. So we specify which to clear, as many as we want. In this case, we just clear all the colour buffers.
+		glEnable(GL_DEPTH_TEST);
 
-		shaderList[0].UseShader();
-		uniformModel = shaderList[0].GetModelLocation();
-		uniformProjection = shaderList[0].GetProjectionLocation();
-		uniformView = shaderList[0].GetViewLocation();
-		uniformEyePosition = shaderList[0].GetEyePositionLocation();
-		uniformSpecularIntensity = shaderList[0].GetSpecularIntensityLocation();
-		uniformShininess = shaderList[0].GetShininessLocation();
+		blinnPhongShader.UseShader();
+		uniformModel = blinnPhongShader.GetModelLocation();
+		uniformProjection = blinnPhongShader.GetProjectionLocation();
+		uniformView = blinnPhongShader.GetViewLocation();
+		uniformEyePosition = blinnPhongShader.GetEyePositionLocation();
+		uniformSpecularIntensity = blinnPhongShader.GetSpecularIntensityLocation();
+		uniformShininess = blinnPhongShader.GetShininessLocation();
 		
 		glm::vec3 lowerLight = camera.GetCameraPosition();
 		lowerLight.y -= 0.3f;
 		spotLights[0].SetFlash(lowerLight, camera.GetCameraDirection());
 
-		shaderList[0].SetDirectionalLight(&mainLight);	// Note: the argument is a pointer, so we pass in the memory address
-		shaderList[0].SetPointLights(pointLights, pointLightCount);
-		shaderList[0].SetSpotLights(spotLights, spotLightCount);
+		blinnPhongShader.SetDirectionalLight(&mainLight);	// Note: the argument is a pointer, so we pass in the memory address
+		blinnPhongShader.SetPointLights(pointLights, pointLightCount);
+		blinnPhongShader.SetSpotLights(spotLights, spotLightCount);
 
 		// View and projection only need to be setup once. Model varies among different objects, so we will setup just view and projection once.
 		glUniformMatrix4fv(uniformProjection, 1, GL_FALSE, glm::value_ptr(projection));
@@ -225,7 +298,25 @@ int main()
 		chopper.RenderModel();
 		currentRotation += 0.05f;
 
-		glUseProgram(0);	// Once we're done with a shader program, remember to unbind it.
+		glUseProgram(0);
+
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+		glClearColor(0.25f, 0.25f, 0.25f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glDisable(GL_DEPTH_TEST);
+
+		sharpenShader.UseShader();
+		glBindTexture(GL_TEXTURE_2D, colourBuffer);
+		meshList[0]->RenderMesh();
+		glUseProgram(0);
+
+		boxBlurShader.UseShader();
+		glBindTexture(GL_TEXTURE_2D, colourBuffer);
+		meshList[1]->RenderMesh();
+		glUseProgram(0);
+
+		//glUseProgram(0);	// Once we're done with a shader program, remember to unbind it.
 
 		mainWindow.SwapBuffers();
 	}
