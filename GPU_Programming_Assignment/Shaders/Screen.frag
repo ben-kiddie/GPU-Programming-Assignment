@@ -1,21 +1,14 @@
 #version 330 core
 
-in vec2 textureCoordinates;
+in vec2 vTexCoord;
 
-out vec4 fragColour;
+out vec4 vFragColour;
 
 uniform sampler2D screenTexture;
 
 void main()
 {
-	vec3 colour = texture(screenTexture, textureCoordinates).rgb;
+	vec3 colour = texture(screenTexture, vTexCoord).rgb;
 
-	if(textureCoordinates.x <= 0.5f)
-	{
-		fragColour = vec4(colour, 1.0f) * vec4(0.1f, 0.3f, 0.1f, 1.0f);
-	}
-	else
-	{
-		fragColour = vec4(colour, 1.0f);
-	}
+	vFragColour = vec4(colour, 1.0f);
 }

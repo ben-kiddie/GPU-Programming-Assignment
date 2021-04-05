@@ -30,67 +30,10 @@
 #include "cMaterial.h"
 #include "cModel.h"
 
-
-
-const float toRadians = 3.14159265f / 180.0f;	// If we multiply a number by this value, it will output a radian value
-
-GLfloat deltaTime = 0.0f, lastTime = 0.0f;
-
-Window mainWindow;
-Camera camera;
-
-Texture plainTexture, emeraldOreTexture, diamondOreTexture;
-Material shinyMaterial, dullMaterial;
-
-DirectionalLight mainLight;
-PointLight pointLights[MAX_POINT_LIGHTS];
-SpotLight spotLights[MAX_SPOT_LIGHTS];
-
-Model plane;
-Model chopper;
-
 std::vector<Mesh*> meshList;
 
-Shader blinnPhongShader, sharpenShader, boxBlurShader;
-
-
-
-void CalculateAverageNormals(unsigned int* indices, unsigned int indexCount, GLfloat* vertices, unsigned int vertexCount, unsigned int vertexLength, unsigned int normalOffset)
+void CreateMeshes()
 {
-	for (size_t i = 0; i < indexCount; i += 3)
-	{
-		// index0,1,2 stores the starting index in our vertices array for a vertex, given an index which points to it. Adding an offset will let us jump to a particular attribute, e.g., normals.
-		unsigned int index0 = indices[i] * vertexLength;	// In our indices array, if we were to say point to index 3 of our vertices array, we know that the third vertex starts at index 9 (and follows on to index 10, then 11 for the full xyz).
-		unsigned int index1 = indices[i + 1] * vertexLength;
-		unsigned int index2 = indices[i + 2] * vertexLength;
-		
-		glm::vec3 v1(vertices[index1] - vertices[index0], vertices[index1 + 1] - vertices[index0 + 1], vertices[index1 + 2] - vertices[index0 + 2]);
-		glm::vec3 v2(vertices[index2] - vertices[index1], vertices[index2 + 1] - vertices[index1 + 1], vertices[index2 + 2] - vertices[index1 + 2]);
-	
-		glm::vec3 normal = glm::cross(v1, v2);
-		normal = glm::normalize(normal);
-
-		index0 += normalOffset, index1 += normalOffset, index2 += normalOffset;
-
-		vertices[index0] += normal.x, vertices[index0 + 1] += normal.y, vertices[index0 + 2] += normal.z;
-		vertices[index1] += normal.x, vertices[index1 + 1] += normal.y, vertices[index1 + 2] += normal.z;
-		vertices[index2] += normal.x, vertices[index2 + 1] += normal.y, vertices[index2 + 2] += normal.z;
-	}
-
-	for (size_t i = 0; i < vertexCount / vertexLength; i++)
-	{
-		unsigned int nOffset = i * vertexLength + normalOffset;
-		glm::vec3 vec(vertices[nOffset], vertices[nOffset + 1], vertices[nOffset + 2]);
-		vec = glm::normalize(vec);
-		vertices[nOffset] = vec.x, vertices[nOffset + 1] = vec.y, vertices[nOffset + 2] = vec.z;
-	}
-}
-
-void CreateObjects()
-{
-	plane.LoadModel("Models/plane.obj");
-	chopper.LoadModel("Models/chopper.obj");
-
 	unsigned int leftScreenQuadIndices[] = {
 		0,	1,	2,
 		2,	3,	0
@@ -122,44 +65,55 @@ void CreateObjects()
 	meshList.push_back(rightScreenQuad);
 }
 
-void CreateShaders()
-{
-	blinnPhongShader.CreateFromFiles("Shaders/shader.vert", "Shaders/shader.frag");
-
-	boxBlurShader.CreateFromFiles("Shaders/Screen.vert", "Shaders/BoxBlur.frag");
-
-	sharpenShader.CreateFromFiles("Shaders/Screen.vert", "Shaders/Sharpen.frag");
-
-
-	//Shader* standardShader = new Shader();
-	//standardShader->CreateFromFiles("Shaders/shader.vert", "Shaders/shader.frag");
-	//shaderList.push_back(*standardShader);
-
-	//Shader* boxBlurShader = new Shader();
-	//boxBlurShader->CreateFromFiles("Shaders/shader.vert", "Shaders/BoxBlur.frag");
-	//shaderList.push_back(*boxBlurShader);
-
-	//Shader* sharpenShader = new Shader();
-	//sharpenShader->CreateFromFiles("Shaders/Screen.vert", "Shaders/Sharpen.frag");
-	//shaderList.push_back(*sharpenShader);
-}
-
 int main()
 {
+#pragma region Local Variables
+	// Window
+	Window mainWindow;
+	Camera camera = Camera(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f, 5.0f, 0.2f);
+	GLfloat deltaTime = 0.0f, lastTime = 0.0f;
+
+	// Models
+	Model floorOBJ;
+	Model chopperOBJ;
+
+	// Materials
+	Material shinyMaterial = Material(4.0f, 156);
+	Material dullMaterial = Material(0.3f, 4);
+
+	// Lights
+	DirectionalLight mainLight;
+	PointLight pointLights[MAX_POINT_LIGHTS];
+	SpotLight spotLights[MAX_SPOT_LIGHTS];
+
+	// Shaders
+	Shader blinnPhongShader, defaultScreenShader, sharpenShader, boxBlurShader;
+
+	// Transformations
+	const float toRadians = 3.14159265f / 180.0f;	// If we multiply a floating point angle (in degrees) by this value, it will output a radian value
+	float chopperYRotation = 0.0f;	// Increment or decrement each frame to rotate the chopper
+#pragma endregion
+
 	mainWindow = Window(SCREEN_WIDTH, SCREEN_HEIGHT);
 	mainWindow.Initialise();
 
-	CreateObjects();
-	CreateShaders();
+	CreateMeshes();
 
-	camera = Camera(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), -90.0f, 0.0f, 5.0f, 0.2f);
+	floorOBJ.LoadModel("Models/plane.obj");
+	chopperOBJ.LoadModel("Models/chopper.obj");
 
+	blinnPhongShader.CreateFromFiles("Shaders/shader.vert", "Shaders/shader.frag");
+	defaultScreenShader.CreateFromFiles("Shaders/Screen.vert", "Shaders/Screen.frag");
+	boxBlurShader.CreateFromFiles("Shaders/Screen.vert", "Shaders/BoxBlur.frag");
+	sharpenShader.CreateFromFiles("Shaders/Screen.vert", "Shaders/Sharpen.frag");
+
+#pragma region Create Framebuffers
 	// Generate and bind a framebuffer
 	unsigned int framebuffer;
 	glGenFramebuffers(1, &framebuffer);
 	glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
 
-	// Generate and bind textures
+	// Generate texture which captures our framebuffer
 	unsigned int colourBuffer;
 	glGenTextures(1, &colourBuffer);
 	glBindTexture(GL_TEXTURE_2D, colourBuffer);
@@ -182,18 +136,14 @@ int main()
 		std::cout << "Framebuffer is not complete!" << std::endl;
 	}
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+#pragma endregion
 
 	// Parameters of glm::perspective:
 	//	1 - The angle for our FOV in the y axis
 	//	2 - The aspect ratio, found by dividing screen width by screen height
 	//	3 - The near plane, where anything in front of this is clipped
 	//	4 - The far plane, where anything beyond this is clipped
-	glm::mat4 projection = glm::perspective(45.0f, mainWindow.GetBufferWidth() / mainWindow.GetBufferHeight(), 0.1f, 100.0f);
-
-	Assimp::Importer importer;	
-
-	shinyMaterial = Material(4.0f, 156);
-	dullMaterial = Material(0.3f, 4);
+	glm::mat4 projection = glm::perspective(45.0f, mainWindow.GetBufferWidth() / mainWindow.GetBufferHeight(), 0.1f, 100.0f);	
 
 	mainLight = DirectionalLight(1.0f, 1.0f, 1.0f, 
 								0.3f, 0.6f, 
@@ -230,17 +180,17 @@ int main()
 	GLuint uniformProjection = 0, uniformModel = 0, uniformView = 0, uniformEyePosition = 0,
 		uniformSpecularIntensity = 0, uniformShininess = 0;
 
-	float currentRotation = 0.0f;
-
 	while (!mainWindow.GetShouldClose())
 	{
 		// In this application, we are running in seconds. If we were to use SDL, we would be running in milliseconds, so we would need to adjust for this.
 		GLfloat currentTime = glfwGetTime();
-		deltaTime = currentTime - lastTime;
+		GLfloat deltaTime = currentTime - lastTime;
 		lastTime = currentTime;
 
 		// Get and handle user input events
 		glfwPollEvents();	// glfwPollEvents picks up events such as keyboard presses, mouse movements, clicking to close a window, moving a window, resizing a window, and more!
+		bool* keys;
+		keys = mainWindow.GetKeys();
 
 		camera.KeyControl(mainWindow.GetKeys(), deltaTime);
 		camera.MouseControl(mainWindow.GetXChange(), mainWindow.GetYChange());
@@ -282,23 +232,25 @@ int main()
 		glUniform3f(uniformEyePosition, camera.GetCameraPosition().x, camera.GetCameraPosition().y, camera.GetCameraPosition().z);	// Inside our fragment shader we want to know the eye position, i.e., camera pos
 		glm::mat4 model(1.0f); // Setup a 4x4 identity matrix so that we can calculate using it later
 
+		// Floor
 		model = glm::mat4(1.0f);
 		model = glm::translate(model, glm::vec3(0.0f, -4.0f, -4.0f));
 		model = glm::scale(model, glm::vec3(10.0f, 10.0f, 10.0f));
 		glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
-		shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
-		plane.RenderModel();
+		dullMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
+		floorOBJ.RenderModel();
 
+		// Chopper
 		model = glm::mat4(1.0f);
 		model = glm::translate(model, glm::vec3(0.0f, 0.0f, -3.0f));
-		model = glm::rotate(model, currentRotation * toRadians, glm::vec3(0.0f, 1.0f, 0.0f));
+		model = glm::rotate(model, chopperYRotation * toRadians, glm::vec3(0.0f, 1.0f, 0.0f));
 		model = glm::scale(model, glm::vec3(0.5f, 0.5f, 0.5f));
 		glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
 		shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
-		chopper.RenderModel();
-		currentRotation += 0.05f;
+		chopperOBJ.RenderModel();
+		chopperYRotation += 0.05f;
 
-		glUseProgram(0);
+		glUseProgram(0);	// Once we're done with a shader program, remember to unbind it.
 
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
@@ -306,17 +258,25 @@ int main()
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glDisable(GL_DEPTH_TEST);
 
-		sharpenShader.UseShader();
+		if (keys[49]) {
+			sharpenShader.UseShader();
+		}
+		else {
+			defaultScreenShader.UseShader();
+		}
 		glBindTexture(GL_TEXTURE_2D, colourBuffer);
 		meshList[0]->RenderMesh();
 		glUseProgram(0);
 
-		boxBlurShader.UseShader();
+		if (keys[50]) {
+			boxBlurShader.UseShader();
+		}
+		else {
+			defaultScreenShader.UseShader();
+		}
 		glBindTexture(GL_TEXTURE_2D, colourBuffer);
 		meshList[1]->RenderMesh();
 		glUseProgram(0);
-
-		//glUseProgram(0);	// Once we're done with a shader program, remember to unbind it.
 
 		mainWindow.SwapBuffers();
 	}
