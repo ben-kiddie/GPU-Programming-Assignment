@@ -1,64 +1,10 @@
 #version 330 core
 
-// Constants
-const int MAX_POINT_LIGHTS = 3;
-const int MAX_SPOT_LIGHTS = 3;
-				
-// Structs
-struct Light
-{
-	vec3 colour;
-	float ambientIntensity;
-	float diffuseIntensity;
-};
-
-struct DirectionalLight
-{
-	Light base;
-	vec3 direction;
-};
-
-struct PointLight
-{
-	Light base;
-	vec3 position;
-	float constant;
-	float linear;
-	float exponent;
-};
-
-struct SpotLight
-{
-	PointLight base;
-	vec3 direction;
-	float edge;
-};
-
-struct Material
-{
-	float specularIntensity;
-	float shininess;
-};
-
 // Input
-in vec4 vCol;	
 in vec2 vTexCoord;
-in vec3 vNormal;
-in vec3 vFragPos;
 
 // Output		
 out vec4 fragColour;
-
-// Uniforms
-uniform DirectionalLight directionalLight;
-uniform int pointLightCount;
-uniform PointLight pointLights[MAX_POINT_LIGHTS];
-uniform int spotLightCount;
-uniform SpotLight spotLights[MAX_SPOT_LIGHTS];
-
-uniform sampler2D theTexture;
-uniform Material material;
-uniform vec3 eyePosition;	// i.e., the camera position for any given first person camera
 
 uniform sampler2D screenTexture;
 

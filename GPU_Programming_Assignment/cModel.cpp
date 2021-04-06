@@ -17,7 +17,7 @@ void Model::LoadModel(const std::string& fileName)
 	//	2+ - Enums letting us change how we read data
 	const aiScene* scene = importer.ReadFile(fileName, 
 												aiProcess_Triangulate					// Force the faces we read from to exlusively be tris
-												| aiProcess_FlipUVs						//
+												| aiProcess_FlipUVs						// Almost all UV's in OpenGL are flipped on the y axis, so we revert this change
 												| aiProcess_GenSmoothNormals			// Smooth the normals across our faces so that as we interpolate along them, the illusion of a smooth surface appears
 												| aiProcess_JoinIdenticalVertices );	// Treat repeat vertices as just one point to save memory
 
