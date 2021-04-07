@@ -85,6 +85,7 @@ int main()
 	DirectionalLight mainLight;
 	PointLight pointLights[MAX_POINT_LIGHTS];
 	SpotLight spotLights[MAX_SPOT_LIGHTS];
+	unsigned int pointLightCount = 0, spotLightCount = 0;
 
 	// Shaders
 	Shader blinnPhongShader, defaultScreenShader, sharpenShader, boxBlurShader;
@@ -102,7 +103,8 @@ int main()
 	floorOBJ.LoadModel("Models/plane.obj");
 	chopperOBJ.LoadModel("Models/chopper.obj");
 
-	blinnPhongShader.CreateFromFiles("Shaders/shader.vert", "Shaders/shader.frag");
+
+	blinnPhongShader.CreateFromFiles("Shaders/shader.vert", "Shaders/BlinnPhong.frag");
 	defaultScreenShader.CreateFromFiles("Shaders/Screen.vert", "Shaders/Screen.frag");
 	boxBlurShader.CreateFromFiles("Shaders/Screen.vert", "Shaders/BoxBlur.frag");
 	sharpenShader.CreateFromFiles("Shaders/Screen.vert", "Shaders/Sharpen.frag");
@@ -149,7 +151,6 @@ int main()
 								0.3f, 0.6f, 
 								0.0f, 0.0f, -1.0f);
 
-	unsigned int pointLightCount = 0;
 	pointLightCount++;		// Red point light
 	pointLights[0] = PointLight(1.0f, 0.0f, 0.0f,
 								10.0f, 10.0f,
@@ -168,7 +169,6 @@ int main()
 								8.0f, 0.0f, 8.0f,
 								0.3f, 0.2f, 0.2f);
 
-	unsigned int spotLightCount = 0;
 	spotLightCount++;		// Flash light
 	spotLights[0] = SpotLight(	1.0f, 1.0f, 1.0f,
 								0.0f, 0.5f,
@@ -217,13 +217,13 @@ int main()
 		uniformEyePosition = blinnPhongShader.GetEyePositionLocation();
 		uniformSpecularIntensity = blinnPhongShader.GetSpecularIntensityLocation();
 		uniformShininess = blinnPhongShader.GetShininessLocation();
-		
-		glm::vec3 lowerLight = camera.GetCameraPosition();
-		lowerLight.y -= 0.3f;
-		spotLights[0].SetFlash(lowerLight, camera.GetCameraDirection());
 
 		blinnPhongShader.SetDirectionalLight(&mainLight);	// Note: the argument is a pointer, so we pass in the memory address
 		blinnPhongShader.SetPointLights(pointLights, pointLightCount);
+
+		glm::vec3 lowerLight = camera.GetCameraPosition();
+		lowerLight.y -= 0.3f;
+		spotLights[0].SetFlash(lowerLight, camera.GetCameraDirection());
 		blinnPhongShader.SetSpotLights(spotLights, spotLightCount);
 
 		// View and projection only need to be setup once. Model varies among different objects, so we will setup just view and projection once.
@@ -232,7 +232,7 @@ int main()
 		glUniform3f(uniformEyePosition, camera.GetCameraPosition().x, camera.GetCameraPosition().y, camera.GetCameraPosition().z);	// Inside our fragment shader we want to know the eye position, i.e., camera pos
 		glm::mat4 model(1.0f); // Setup a 4x4 identity matrix so that we can calculate using it later
 
-		// Floor
+		// Floor transformations
 		model = glm::mat4(1.0f);
 		model = glm::translate(model, glm::vec3(0.0f, -4.0f, -4.0f));
 		model = glm::scale(model, glm::vec3(10.0f, 10.0f, 10.0f));
@@ -240,7 +240,7 @@ int main()
 		dullMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
 		floorOBJ.RenderModel();
 
-		// Chopper
+		// Chopper transformations
 		model = glm::mat4(1.0f);
 		model = glm::translate(model, glm::vec3(0.0f, 0.0f, -3.0f));
 		model = glm::rotate(model, chopperYRotation * toRadians, glm::vec3(0.0f, 1.0f, 0.0f));
