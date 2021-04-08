@@ -73,7 +73,6 @@ vec4 CalcLightByDirection(Light light, vec3 direction)	// Directional lights cal
 	if(diffuseFactor > 0.0f)	// Considering the fact that any diffuse factor less than 0 means the surface isn't being hit, it stands to reason specular reflections will not occur either
 	{
 		vec3 vecFragToEye = normalize(eyePosition - vFragPos);	// We just want to know the direction we need to look in for this fragment, so we normalise the result to unit vector (no magnitude involved)
-		//vec3 vecReflected = normalize(reflect(direction, normalize(vNormal)));
 		
 		vec3 halfwayVector = normalize(vecFragToEye + direction);
 		float specularFactor = max(0.0f, dot(halfwayVector, vNormal));
