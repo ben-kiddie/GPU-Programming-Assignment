@@ -221,9 +221,11 @@ int main()
 		blinnPhongShader.SetDirectionalLight(&mainLight);	// Note: the argument is a pointer, so we pass in the memory address
 		blinnPhongShader.SetPointLights(pointLights, pointLightCount);
 
-		glm::vec3 lowerLight = camera.GetCameraPosition();
-		lowerLight.y -= 0.3f;
-		spotLights[0].SetFlash(lowerLight, camera.GetCameraDirection());
+		if (keys[32]) {
+			glm::vec3 lowerLight = camera.GetCameraPosition();
+			lowerLight.y -= 0.3f;
+			spotLights[0].SetFlash(lowerLight, camera.GetCameraDirection());
+		}
 		blinnPhongShader.SetSpotLights(spotLights, spotLightCount);
 
 		// View and projection only need to be setup once. Model varies among different objects, so we will setup just view and projection once.
