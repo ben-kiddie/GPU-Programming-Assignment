@@ -28,6 +28,7 @@ void Model::LoadModel(const std::string& fileName)
 
 	LoadNode(scene->mRootNode, scene);
 	LoadMaterials(scene);
+	std::cout << "Loaded model at path: " << fileName << std::endl;
 }
 
 void Model::RenderModel()

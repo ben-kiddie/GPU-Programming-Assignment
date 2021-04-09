@@ -77,6 +77,9 @@ int main()
 	Model floorOBJ;
 	Model chopperOBJ;
 
+	Model testMonkeyOBJ;
+	Model testMonkeyFBX;
+
 	// Materials
 	Material shinyMaterial = Material(4.0f, 156);
 	Material dullMaterial = Material(0.3f, 4);
@@ -92,7 +95,7 @@ int main()
 
 	// Transformations
 	const float toRadians = 3.14159265f / 180.0f;	// If we multiply a floating point angle (in degrees) by this value, it will output a radian value
-	float chopperYRotation = 0.0f;	// Increment or decrement each frame to rotate the chopper
+	float rotation = 0.0f;	// Increment or decrement each frame to rotate the chopper
 #pragma endregion
 
 	mainWindow = Window(SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -103,6 +106,8 @@ int main()
 	floorOBJ.LoadModel("Models/plane.obj");
 	chopperOBJ.LoadModel("Models/chopper.obj");
 
+	testMonkeyOBJ.LoadModel("Models/TestMonkeyOBJ.obj");
+	testMonkeyFBX.LoadModel("Models/TestMonkeyFBX.fbx");
 
 	blinnPhongShader.CreateFromFiles("Shaders/shader.vert", "Shaders/BlinnPhong.frag");
 	defaultScreenShader.CreateFromFiles("Shaders/Screen.vert", "Shaders/Screen.frag");
@@ -245,12 +250,32 @@ int main()
 		// Chopper transformations
 		model = glm::mat4(1.0f);
 		model = glm::translate(model, glm::vec3(0.0f, 0.0f, -3.0f));
-		model = glm::rotate(model, chopperYRotation * toRadians, glm::vec3(0.0f, 1.0f, 0.0f));
+		model = glm::rotate(model, rotation * toRadians, glm::vec3(0.0f, 1.0f, 0.0f));
 		model = glm::scale(model, glm::vec3(0.5f, 0.5f, 0.5f));
 		glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
 		shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
 		chopperOBJ.RenderModel();
-		chopperYRotation += 0.05f;
+
+		// TestMonkeyOBJ transformations
+		model = glm::mat4(1.0f);
+		model = glm::translate(model, glm::vec3(2.0f, 4.0f, -3.0f));
+		model = glm::rotate(model, rotation * toRadians, glm::vec3(1.0f, 0.0f, 0.0f));
+		model = glm::scale(model, glm::vec3(0.5f, 0.5f, 0.5f));
+		glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
+		testMonkeyOBJ.RenderModel();
+
+		// TestMonkeyFBX transformations
+		model = glm::mat4(1.0f);
+		model = glm::translate(model, glm::vec3(-2.0f, 4.0f, -3.0f));
+		model = glm::rotate(model, rotation * toRadians, glm::vec3(0.0f, 0.0f, 1.0f));
+		model = glm::scale(model, glm::vec3(0.5f, 0.5f, 0.5f));
+		glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
+		testMonkeyFBX.RenderModel();
+
+		rotation += 0.05f;
+		if (rotation >= 360) {
+			rotation = 0;
+		}
 
 		glUseProgram(0);	// Once we're done with a shader program, remember to unbind it.
 
