@@ -63,6 +63,21 @@ void CreateMeshes()
 	Mesh* rightScreenQuad = new Mesh();
 	rightScreenQuad->CreateMesh(rightScreenQuadVertices, rightScreenQuadIndices, 32, 6);
 	meshList.push_back(rightScreenQuad);
+
+	unsigned int reverseQuadIndices[] = {
+		0,	1,	2,
+		2,	3,	0
+	};
+	GLfloat reverseQuadVertices[] = {
+		//	x		y		z		u		v		nX		nY		nZ
+			-1.0f,	1.0f,	0.0f,	1.0f,	1.0f,	0.0f,	0.0f,	0.0f,	// Top left
+			-1.0f,	-1.0f,	0.0f,	1.0f,	0.0f,	0.0f,	0.0f,	0.0f,	// Bottom left
+			0.0f,	-1.0f,	0.0f,	0.5f,	0.0f,	0.0f,	0.0f,	0.0f,	// Bottom middle
+			0.0f,	1.0f,	0.0f,	0.5f,	1.0f,	0.0f,	0.0f,	0.0f	// Top middle
+	};
+	Mesh* reverseQuad = new Mesh();
+	reverseQuad->CreateMesh(reverseQuadVertices, reverseQuadIndices, 32, 12);
+	meshList.push_back(reverseQuad);
 }
 
 int main()
@@ -78,6 +93,7 @@ int main()
 	Model chopperOBJ;
 
 	Model testMonkeyOBJ;
+	Model testMonkeyOBJ2;
 	Model testMonkeyFBX;
 
 	// Materials
@@ -107,6 +123,7 @@ int main()
 	chopperOBJ.LoadModel("Models/chopper.obj");
 
 	testMonkeyOBJ.LoadModel("Models/TestMonkeyOBJ.obj");
+	testMonkeyOBJ2.LoadModel("Models/TestMonkeyOBJ2.obj");
 	testMonkeyFBX.LoadModel("Models/TestMonkeyFBX.fbx");
 
 	blinnPhongShader.CreateFromFiles("Shaders/shader.vert", "Shaders/BlinnPhong.frag");
@@ -158,7 +175,7 @@ int main()
 
 	pointLightCount++;		// Red point light
 	pointLights[0] = PointLight(1.0f, 0.0f, 0.0f,
-								10.0f, 10.0f,
+								1.0f, 10.0f,
 								-8.0f, 0.0f, 8.0f,
 								0.3f, 0.2f, 0.2f);
 	
@@ -262,7 +279,17 @@ int main()
 		model = glm::rotate(model, rotation * toRadians, glm::vec3(1.0f, 0.0f, 0.0f));
 		model = glm::scale(model, glm::vec3(0.5f, 0.5f, 0.5f));
 		glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
+		dullMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
 		testMonkeyOBJ.RenderModel();
+
+		// TestMonkeyOBJ2 transformations
+		model = glm::mat4(1.0f);
+		model = glm::translate(model, glm::vec3(4.0f, 4.0f, -3.0f));
+		model = glm::rotate(model, rotation * toRadians, glm::vec3(1.0f, 0.0f, 0.0f));
+		model = glm::scale(model, glm::vec3(0.5f, 0.5f, 0.5f));
+		glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
+		shinyMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
+		testMonkeyOBJ2.RenderModel();
 
 		// TestMonkeyFBX transformations
 		model = glm::mat4(1.0f);
@@ -270,6 +297,7 @@ int main()
 		model = glm::rotate(model, rotation * toRadians, glm::vec3(0.0f, 0.0f, 1.0f));
 		model = glm::scale(model, glm::vec3(0.5f, 0.5f, 0.5f));
 		glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
+		dullMaterial.UseMaterial(uniformSpecularIntensity, uniformShininess);
 		testMonkeyFBX.RenderModel();
 
 		rotation += 0.05f;
@@ -293,7 +321,6 @@ int main()
 		}
 		glBindTexture(GL_TEXTURE_2D, colourBuffer);
 		meshList[0]->RenderMesh();
-		glUseProgram(0);
 
 		if (keys[50]) {
 			boxBlurShader.UseShader();
@@ -303,6 +330,13 @@ int main()
 		}
 		glBindTexture(GL_TEXTURE_2D, colourBuffer);
 		meshList[1]->RenderMesh();
+
+		if (keys[51]) {
+			defaultScreenShader.UseShader();
+			glBindTexture(GL_TEXTURE_2D, colourBuffer);
+			meshList[2]->RenderMesh();
+		}
+
 		glUseProgram(0);
 
 		mainWindow.SwapBuffers();
